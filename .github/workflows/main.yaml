@@ -1,0 +1,48 @@
+name: Deploy (Forge CLI)
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+
+jobs:
+  deployStagingJob:
+    runs-on: ubuntu-latest
+    steps:
+     - uses: actions/checkout@v4
+
+     - name: Setup Node.js
+       uses: actions/setup-node@v4
+       with:
+          node-version: 20
+
+     - name: Install dependencies & build
+       run: |
+          npm ci
+          npm run build
+
+     - name: Trigger Forge deployment
+       run: |
+          # Replace with the full trigger URL from Forge (store as secret)
+          curl -X POST "https://forge.laravel.com/servers/906819/sites/2823146/deploy/http?token=bmCzYtUTmwvZVxcdvrCrZArEBVmIoourJ9QngLYi?forge_deploy_branch=dev" --fail
+
+  deployProductionJob:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies & build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Trigger Forge deployment
+        run: |
+          # Replace with the full trigger URL from Forge (store as secret)
+          curl -X POST "https://forge.laravel.com/servers/906819/sites/2823146/deploy/http?token=bmCzYtUTmwvZVxcdvrCrZArEBVmIoourJ9QngLYi?forge_deploy_branch=main" --fail
