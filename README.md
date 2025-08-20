@@ -1,3 +1,5 @@
+[![Laravel Forge Site Deployment Status](https://img.shields.io/endpoint?url=https%3A%2F%2Fforge.laravel.com%2Fsite-badges%2F4a5e7497-ff01-4766-8a43-68d2e7a13170%3Fdate%3D1%26label%3D1%26commit%3D1&style=plastic)](https://forge.laravel.com/servers/906819/sites/2823146)
+
 # ScreenSuggest Frontend
 
 A modern Vue.js 3 movie search and recommendation application built with TypeScript and TailwindCSS.
