@@ -39,10 +39,31 @@ src/
 
 ## API Integration
 
-The application is designed to work with the ScreenSuggest API:
-- **Base URL**: `https://screensuggest.dev.anarzone.com/api/`
-- **Endpoints**: `/movies`, `/genres`
-- **Fallback**: Mock data is provided for development when API is unavailable
+The application integrates with the ScreenSuggest API with environment-based URLs:
+
+### Environment Configuration
+- **Development**: `https://screensuggest.staging.api.anarzone.com`
+- **Production**: `https://screensuggest.api.anarzone.com`
+
+### API Endpoints
+- **Movies**: `/movies` - Search movies with filtering
+- **Genres**: `/genres` - Get available movie genres
+
+### Search Parameters
+The API supports comprehensive search and filtering:
+- `q` - Search query (minimum 3 characters)
+- `genre` - Filter by genre name
+- `yearStart` - Filter movies from this year
+- `yearEnd` - Filter movies until this year
+- `imdbRatingMin` - Minimum IMDB rating
+- `imdbRatingMax` - Maximum IMDB rating
+- `sortBy` - Sort by: `title`, `releaseDate`, `imdbRating`
+- `sortOrder` - Sort direction: `ASC` or `DESC`
+- `page` - Page number (default: 1)
+- `limit` - Results per page (default: 20, max: 100)
+
+### Fallback Support
+Mock data is provided for development when API is unavailable, ensuring smooth development experience.
 
 ## Development Setup
 
@@ -76,10 +97,12 @@ npm run dev
 - Genre browsing categories
 
 ### Search Results
-- Advanced filtering options (genre, year, rating)
-- Responsive movie grid
+- Advanced filtering options (genre, year range, IMDB rating)
+- URL-based parameter handling for shareable links
+- Responsive movie grid layout
 - Infinite scroll pagination
 - Results count and search feedback
+- Optimized API requests (no duplicate calls)
 
 ### Movie Details
 - Comprehensive movie information

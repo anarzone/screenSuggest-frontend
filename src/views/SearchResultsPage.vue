@@ -31,6 +31,14 @@ export default {
       type: String,
       default: '',
     },
+    yearStart: {
+      type: String,
+      default: '',
+    },
+    yearEnd: {
+      type: String,
+      default: '',
+    },
     sortBy: {
       type: String,
       default: '',
@@ -57,9 +65,9 @@ export default {
       filters: {
         query: '',
         genre: '',
-        yearFrom: undefined,
-        yearTo: undefined,
-        ratingFrom: undefined,
+        yearStart: undefined,
+        yearEnd: undefined,
+        imdbRatingMin: undefined,
         page: 1,
         limit: 20,
         sortBy: '',
@@ -67,9 +75,8 @@ export default {
       } as SearchFilters & { sortBy: string; sortOrder: string },
       sortOptions: [
         { value: 'title', label: 'Title' },
-        { value: 'year', label: 'Year' },
-        { value: 'rating', label: 'Rating' },
-        { value: 'popularity', label: 'Popularity' },
+        { value: 'releaseDate', label: 'Year' },
+        { value: 'imdbRating', label: 'Rating' },
       ],
     };
   },
@@ -90,7 +97,7 @@ export default {
     },
   },
   mounted() {
-    this.initializeFromRoute();
+    // Don't call initializeFromRoute() here since it's already called by the route watcher with immediate: true
     window.addEventListener('scroll', this.handleScroll);
   },
   unmounted() {
@@ -98,19 +105,41 @@ export default {
   },
   methods: {
     initializeFromRoute() {
-      // Update filters from route props
-      this.filters.query = this.query || '';
-      this.filters.genre = this.genre || '';
-      this.filters.sortBy = this.sortBy || '';
-      this.filters.sortOrder = this.sortOrder || '';
-      this.filters.limit = parseInt(this.limit) || 20;
+      // Update filters from route props and query parameters
+      const routeQuery = this.$route.query;
       
-      if (this.ratingMin) {
-        this.filters.ratingFrom = parseFloat(this.ratingMin);
+      this.filters.query = this.query || routeQuery.q || '';
+      this.filters.genre = this.genre || routeQuery.genre || '';
+      this.filters.sortBy = this.sortBy || routeQuery.sortBy || '';
+      this.filters.sortOrder = this.sortOrder || routeQuery.sortOrder || '';
+      this.filters.limit = parseInt(this.limit) || parseInt(routeQuery.limit as string) || 20;
+      
+      // Handle rating parameters
+      if (this.ratingMin || routeQuery.ratingMin) {
+        this.filters.imdbRatingMin = parseFloat(this.ratingMin || routeQuery.ratingMin as string);
+      }
+      if (this.ratingMax || routeQuery.ratingMax) {
+        this.filters.imdbRatingMax = parseFloat(this.ratingMax || routeQuery.ratingMax as string);
       }
       
-      // Perform search if we have query params
-      if (this.query || this.genre || this.ratingMin || this.ratingMax) {
+      // Handle year parameters  
+      if (this.yearStart || routeQuery.yearStart) {
+        this.filters.yearStart = parseInt(this.yearStart || routeQuery.yearStart as string);
+      }
+      if (this.yearEnd || routeQuery.yearEnd) {
+        this.filters.yearEnd = parseInt(this.yearEnd || routeQuery.yearEnd as string);
+      }
+      // Handle single 'year' parameter - map it to yearStart for filtering
+      if (routeQuery.year) {
+        this.filters.yearStart = parseInt(routeQuery.year as string);
+      }
+      
+      // Perform search if we have any query params
+      const hasParams = this.query || this.genre || this.ratingMin || this.ratingMax || this.yearStart || this.yearEnd ||
+                       routeQuery.q || routeQuery.genre || routeQuery.ratingMin || routeQuery.ratingMax ||
+                       routeQuery.yearStart || routeQuery.yearEnd || routeQuery.year || routeQuery.sortBy;
+      
+      if (hasParams) {
         this.performSearch();
       }
     },
@@ -128,8 +157,10 @@ export default {
         const searchParams = {
           q: this.filters.query,
           genre: this.filters.genre,
-          ratingMin: this.ratingMin,
-          ratingMax: this.ratingMax,
+          imdbRatingMin: this.filters.imdbRatingMin,
+          imdbRatingMax: this.filters.imdbRatingMax,
+          yearStart: this.filters.yearStart,
+          yearEnd: this.filters.yearEnd,
           sortBy: this.filters.sortBy,
           sortOrder: this.filters.sortOrder,
           limit: this.filters.limit,
@@ -167,9 +198,9 @@ export default {
       this.filters = {
         query: '',
         genre: '',
-        yearFrom: undefined,
-        yearTo: undefined,
-        ratingFrom: undefined,
+        yearStart: undefined,
+        yearEnd: undefined,
+        imdbRatingMin: undefined,
         page: 1,
         limit: 20,
         sortBy: '',
@@ -221,7 +252,9 @@ export default {
       
       if (this.filters.query) query.q = this.filters.query;
       if (this.filters.genre) query.genre = this.filters.genre;
-      if (this.filters.ratingFrom) query.ratingMin = this.filters.ratingFrom.toString();
+      if (this.filters.imdbRatingMin) query.ratingMin = this.filters.imdbRatingMin.toString();
+      if (this.filters.yearStart) query.yearStart = this.filters.yearStart.toString();
+      if (this.filters.yearEnd) query.yearEnd = this.filters.yearEnd.toString();
       if (this.filters.sortBy) query.sortBy = this.filters.sortBy;
       if (this.filters.sortOrder) query.sortOrder = this.filters.sortOrder;
       if (this.filters.limit !== 20) query.limit = this.filters.limit.toString();
@@ -233,7 +266,7 @@ export default {
     },
     handleSortChange(sortBy: string) {
       this.filters.sortBy = sortBy;
-      this.filters.sortOrder = this.filters.sortOrder || 'asc';
+      this.filters.sortOrder = this.filters.sortOrder || 'DESC';
       this.updateRoute();
       this.performSearch();
     },
@@ -242,7 +275,7 @@ export default {
 </script>
 
 <template>
-  <div class="search-results-page min-h-screen">
+  <div class="search-results-page min-h-screen bg-background text-textPrimary">
     <!-- Sticky Search Header -->
     <Header
       :show-search="true"
@@ -290,7 +323,7 @@ export default {
             <select 
               v-model="filters.sortBy"
               @change="handleSortChange(filters.sortBy)"
-              class="bg-background border border-border rounded px-3 py-2 text-textPrimary focus:border-primary focus:outline-none"
+              class="bg-background border border-border rounded px-3 py-2 text-textPrimary focus:outline-none"
             >
               <option value="">Default</option>
               <option v-for="option in sortOptions" :key="option.value" :value="option.value">
@@ -302,10 +335,10 @@ export default {
               v-if="filters.sortBy"
               v-model="filters.sortOrder"
               @change="handleSortChange(filters.sortBy)"
-              class="bg-background border border-border rounded px-3 py-2 text-textPrimary focus:border-primary focus:outline-none"
+              class="bg-background border border-border rounded px-3 py-2 text-textPrimary focus:outline-none"
             >
-              <option value="asc">Ascending</option>
-              <option value="desc">Descending</option>
+              <option value="ASC">Ascending</option>
+              <option value="DESC">Descending</option>
             </select>
           </div>
           

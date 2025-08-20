@@ -17,11 +17,11 @@ const emit = defineEmits<{
 
 const { genres } = useGenres();
 
-// Local filter state
+// Local filter state (temporary until Apply Filters is clicked)
 const selectedGenre = ref(props.filters.genre || '');
-const yearFrom = ref(props.filters.yearFrom?.toString() || '');
-const yearTo = ref(props.filters.yearTo?.toString() || '');
-const ratingFrom = ref(props.filters.ratingFrom || 0);
+const yearFrom = ref(props.filters.yearFrom?.toString() || props.filters.yearStart?.toString() || '');
+const yearTo = ref(props.filters.yearTo?.toString() || props.filters.yearEnd?.toString() || '');
+const ratingFrom = ref(props.filters.ratingFrom || props.filters.imdbRatingMin || 0);
 
 // Rating display value
 const ratingDisplay = computed(() => `${ratingFrom.value}+`);
@@ -31,22 +31,29 @@ const hasActiveFilters = computed(() => {
   return selectedGenre.value || yearFrom.value || yearTo.value || ratingFrom.value > 0;
 });
 
-function updateGenre() {
-  emit('updateFilters', { genre: selectedGenre.value || undefined });
-}
+// Check if there are pending changes that haven't been applied
+const hasPendingChanges = computed(() => {
+  const currentGenre = props.filters.genre || '';
+  const currentYearFrom = props.filters.yearFrom?.toString() || '';
+  const currentYearTo = props.filters.yearTo?.toString() || '';
+  const currentRatingFrom = props.filters.ratingFrom || 0;
+  
+  return selectedGenre.value !== currentGenre ||
+         yearFrom.value !== currentYearFrom ||
+         yearTo.value !== currentYearTo ||
+         ratingFrom.value !== currentRatingFrom;
+});
 
-function updateYearRange() {
+function applyFilters() {
   const fromYear = yearFrom.value ? parseInt(yearFrom.value) : undefined;
   const toYear = yearTo.value ? parseInt(yearTo.value) : undefined;
   
-  emit('updateFilters', { 
-    yearFrom: fromYear, 
-    yearTo: toYear 
+  emit('updateFilters', {
+    genre: selectedGenre.value || undefined,
+    yearStart: fromYear,
+    yearEnd: toYear,
+    imdbRatingMin: ratingFrom.value || undefined,
   });
-}
-
-function updateRating() {
-  emit('updateFilters', { ratingFrom: ratingFrom.value || undefined });
 }
 
 function clearAllFilters() {
@@ -66,8 +73,7 @@ function clearAllFilters() {
         <div class="filter-group">
           <select
             v-model="selectedGenre"
-            @change="updateGenre"
-            class="bg-background border border-border text-textPrimary rounded px-4 py-2 focus:ring-1 focus:ring-primary focus:outline-none"
+            class="bg-background border border-border text-textPrimary rounded px-4 py-2 focus:outline-none"
           >
             <option value="">All Genres</option>
             <option
@@ -86,22 +92,20 @@ function clearAllFilters() {
           <div class="flex items-center gap-2">
             <input
               v-model="yearFrom"
-              @input="updateYearRange"
               type="number"
               :min="YEAR_RANGE.MIN"
               :max="YEAR_RANGE.MAX"
               :placeholder="YEAR_RANGE.MIN.toString()"
-              class="w-20 bg-background border border-border text-textPrimary rounded px-2 py-2 focus:ring-1 focus:ring-primary focus:outline-none"
+              class="w-20 bg-background border border-border text-textPrimary rounded px-2 py-2 focus:outline-none"
             />
             <span class="text-textSecondary">-</span>
             <input
               v-model="yearTo"
-              @input="updateYearRange"
               type="number"
               :min="YEAR_RANGE.MIN"
               :max="YEAR_RANGE.MAX"
               :placeholder="YEAR_RANGE.MAX.toString()"
-              class="w-20 bg-background border border-border text-textPrimary rounded px-2 py-2 focus:ring-1 focus:ring-primary focus:outline-none"
+              class="w-20 bg-background border border-border text-textPrimary rounded px-2 py-2 focus:outline-none"
             />
           </div>
         </div>
@@ -112,7 +116,6 @@ function clearAllFilters() {
           <div class="flex items-center gap-2">
             <input
               v-model="ratingFrom"
-              @input="updateRating"
               type="range"
               :min="RATING_RANGE.MIN"
               :max="RATING_RANGE.MAX"
@@ -135,9 +138,14 @@ function clearAllFilters() {
         </button>
 
         <!-- Apply Filters Button -->
-        <button class="bg-primary hover:bg-secondary text-background font-medium px-6 py-2 rounded transition-colors ml-auto">
+        <button 
+          @click="applyFilters"
+          :class="hasPendingChanges ? 'bg-primary hover:bg-secondary' : 'bg-primary/70 hover:bg-primary'"
+          class="text-background font-medium px-6 py-2 rounded transition-colors ml-auto"
+        >
           <font-awesome-icon icon="sliders" class="mr-2" />
-          Filters
+          Apply Filters
+          <span v-if="hasPendingChanges" class="ml-1 text-xs">•</span>
         </button>
       </div>
     </div>

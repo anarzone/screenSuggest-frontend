@@ -14,5 +14,3 @@ export const RATING_RANGE = {
   MIN: 0,
   MAX: 10,
 };
-
-export const DEBOUNCE_DELAY = 300; // milliseconds

@@ -12,28 +12,46 @@ export class MovieService {
         page: filters.page || 1,
         limit: filters.limit || 20,
       };
-      
-      // Handle query parameter (use q if provided, otherwise query)
+
       if (filters.q) {
         params.q = filters.q;
-      } else if (filters.query) {
-        params.q = filters.query;
       }
       
-      // Handle other search parameters
+      // Handle other search parameters - match API specification
       if (filters.genre) params.genre = filters.genre;
-      if (filters.ratingMin) params.ratingMin = filters.ratingMin;
-      if (filters.ratingMax) params.ratingMax = filters.ratingMax;
-      if (filters.sortBy) params.sortBy = filters.sortBy;
-      if (filters.sortOrder) params.sortOrder = filters.sortOrder;
-      if (filters.yearFrom) params.yearFrom = filters.yearFrom;
-      if (filters.yearTo) params.yearTo = filters.yearTo;
-      if (filters.ratingFrom) params.ratingFrom = filters.ratingFrom;
-
-      const response = await apiClient.get<Movie[]>('/movies', params);
       
-      // Transform data to ensure consistent structure
-      const movies = Array.isArray(response.data) ? response.data : response.data || [];
+      // Handle rating parameters (support both old and new naming)
+      if (filters.ratingMin) params.imdbRatingMin = filters.ratingMin;
+      if (filters.ratingMax) params.imdbRatingMax = filters.ratingMax;
+      if (filters.imdbRatingMin) params.imdbRatingMin = filters.imdbRatingMin;
+      if (filters.imdbRatingMax) params.imdbRatingMax = filters.imdbRatingMax;
+      if (filters.ratingFrom) params.imdbRatingMin = filters.ratingFrom;
+      
+      // Handle year parameters (support both old and new naming)
+      if (filters.yearFrom) params.yearStart = filters.yearFrom;
+      if (filters.yearTo) params.yearEnd = filters.yearTo;
+      if (filters.yearStart) params.yearStart = filters.yearStart;
+      if (filters.yearEnd) params.yearEnd = filters.yearEnd;
+      
+      // Map sort parameters to API specification
+      if (filters.sortBy) {
+        const sortMap: { [key: string]: string } = {
+          'title': 'title',
+          'year': 'releaseDate', 
+          'rating': 'imdbRating',
+          'popularity': 'imdbRating' // fallback to rating for popularity
+        };
+        params.sortBy = sortMap[filters.sortBy] || filters.sortBy;
+      }
+      if (filters.sortOrder) {
+        params.sortOrder = filters.sortOrder.toUpperCase(); // API expects ASC/DESC
+      }
+
+      const response = await apiClient.get<any>('/movies', params);
+      
+      // Handle API response structure - data might be at response.data or response.data.data
+      const movies = Array.isArray(response.data?.data) ? response.data.data : 
+                     Array.isArray(response.data) ? response.data : [];
       
       // Transform API data to match our interface
       const transformedMovies = movies.map((movie: any) => ({
@@ -49,11 +67,14 @@ export class MovieService {
         duration: movie.duration || movie.runtime || 0,
       }));
       
+      // Handle API response structure with pagination object
+      const pagination = response.data?.pagination || response.pagination;
+      
       return {
         data: transformedMovies,
-        total: response.total || movies.length,
-        page: response.page || 1,
-        totalPages: response.totalPages || Math.ceil((response.total || movies.length) / (filters.limit || 20)),
+        total: pagination?.total_items || response.total || movies.length,
+        page: pagination?.current_page || response.page || 1,
+        totalPages: pagination?.total_pages || response.totalPages || Math.ceil((pagination?.total_items || response.total || movies.length) / (filters.limit || 20)),
       };
     } catch (error) {
       console.error('Error searching movies:', error);
@@ -145,7 +166,7 @@ export class MovieService {
         page: response.page || 1,
       };
     } catch (error) {
-      console.error('Error searching movies with params:', error);
+      console.error('Error searching movies with params, using mock data:', error);
       // Return fallback mock data
       const mockData = this.getMockMovies(searchParams);
       return {
@@ -159,7 +180,11 @@ export class MovieService {
 
   // Mock data methods for development/fallback
   private getMockMovies(filters: SearchFilters): ApiResponse<Movie[]> {
-    const mockMovies: Movie[] = [
+    // Simulate pagination for testing
+    const page = filters.page || 1;
+    const limit = filters.limit || 20;
+    
+    const allMockMovies: Movie[] = [
       {
         id: 1,
         title: 'Inception',
@@ -196,13 +221,165 @@ export class MovieService {
         synopsis: 'A computer programmer is led to fight an underground war against powerful computers who have constructed his entire reality with a system called the Matrix.',
         duration: 136,
       },
+      // Add more movies to simulate multiple pages
+      {
+        id: 4,
+        title: 'Pulp Fiction',
+        year: 1994,
+        poster_url: 'https://via.placeholder.com/300x450/1a1a1a/ffffff?text=Pulp+Fiction',
+        rating: 8.9,
+        genres: ['Crime', 'Drama'],
+        director: 'Quentin Tarantino',
+        cast: ['John Travolta', 'Uma Thurman', 'Samuel L. Jackson'],
+        synopsis: 'The lives of two mob hitmen, a boxer, a gangster and his wife intertwine in four tales of violence and redemption.',
+        duration: 154,
+      },
+      {
+        id: 5,
+        title: 'The Dark Knight',
+        year: 2008,
+        poster_url: 'https://via.placeholder.com/300x450/1a1a1a/ffffff?text=The+Dark+Knight',
+        rating: 9.0,
+        genres: ['Action', 'Crime', 'Drama'],
+        director: 'Christopher Nolan',
+        cast: ['Christian Bale', 'Heath Ledger', 'Aaron Eckhart'],
+        synopsis: 'When the menace known as the Joker wreaks havoc on Gotham City, Batman must accept one of the greatest psychological and physical tests.',
+        duration: 152,
+      },
+      {
+        id: 6,
+        title: 'Fight Club',
+        year: 1999,
+        poster_url: 'https://via.placeholder.com/300x450/1a1a1a/ffffff?text=Fight+Club',
+        rating: 8.8,
+        genres: ['Drama'],
+        director: 'David Fincher',
+        cast: ['Brad Pitt', 'Edward Norton', 'Helena Bonham Carter'],
+        synopsis: 'An insomniac office worker and a devil-may-care soap maker form an underground fight club.',
+        duration: 139,
+      },
+      {
+        id: 7,
+        title: 'Forrest Gump',
+        year: 1994,
+        poster_url: 'https://via.placeholder.com/300x450/1a1a1a/ffffff?text=Forrest+Gump',
+        rating: 8.8,
+        genres: ['Drama', 'Romance'],
+        director: 'Robert Zemeckis',
+        cast: ['Tom Hanks', 'Robin Wright', 'Gary Sinise'],
+        synopsis: 'The presidencies of Kennedy and Johnson, the Vietnam War, and other historical events unfold from the perspective of an Alabama man.',
+        duration: 142,
+      },
+      {
+        id: 8,
+        title: 'Goodfellas',
+        year: 1990,
+        poster_url: 'https://via.placeholder.com/300x450/1a1a1a/ffffff?text=Goodfellas',
+        rating: 8.7,
+        genres: ['Biography', 'Crime', 'Drama'],
+        director: 'Martin Scorsese',
+        cast: ['Robert De Niro', 'Ray Liotta', 'Joe Pesci'],
+        synopsis: 'The story of Henry Hill and his life in the mob, covering his relationship with his wife Karen Hill.',
+        duration: 146,
+      },
+      {
+        id: 9,
+        title: 'The Shawshank Redemption',
+        year: 1994,
+        poster_url: 'https://via.placeholder.com/300x450/1a1a1a/ffffff?text=Shawshank+Redemption',
+        rating: 9.3,
+        genres: ['Drama'],
+        director: 'Frank Darabont',
+        cast: ['Tim Robbins', 'Morgan Freeman', 'Bob Gunton'],
+        synopsis: 'Two imprisoned men bond over a number of years, finding solace and eventual redemption through acts of common decency.',
+        duration: 142,
+      },
+      {
+        id: 10,
+        title: 'The Godfather',
+        year: 1972,
+        poster_url: 'https://via.placeholder.com/300x450/1a1a1a/ffffff?text=The+Godfather',
+        rating: 9.2,
+        genres: ['Crime', 'Drama'],
+        director: 'Francis Ford Coppola',
+        cast: ['Marlon Brando', 'Al Pacino', 'James Caan'],
+        synopsis: 'An aging patriarch of an organized crime dynasty transfers control of his clandestine empire to his reluctant son.',
+        duration: 175,
+      },
+      {
+        id: 11,
+        title: '12 Angry Men',
+        year: 1957,
+        poster_url: 'https://via.placeholder.com/300x450/1a1a1a/ffffff?text=12+Angry+Men',
+        rating: 9.0,
+        genres: ['Crime', 'Drama'],
+        director: 'Sidney Lumet',
+        cast: ['Henry Fonda', 'Lee J. Cobb', 'Martin Balsam'],
+        synopsis: 'A jury holdout attempts to prevent a miscarriage of justice by forcing his colleagues to reconsider the evidence.',
+        duration: 96,
+      },
+      {
+        id: 12,
+        title: 'Schindler\'s List',
+        year: 1993,
+        poster_url: 'https://via.placeholder.com/300x450/1a1a1a/ffffff?text=Schindlers+List',
+        rating: 9.0,
+        genres: ['Biography', 'Drama', 'History'],
+        director: 'Steven Spielberg',
+        cast: ['Liam Neeson', 'Ralph Fiennes', 'Ben Kingsley'],
+        synopsis: 'In German-occupied Poland during World War II, industrialist Oskar Schindler saves his Jewish employees.',
+        duration: 195,
+      },
+      {
+        id: 13,
+        title: 'The Lord of the Rings: The Return of the King',
+        year: 2003,
+        poster_url: 'https://via.placeholder.com/300x450/1a1a1a/ffffff?text=LOTR+Return+King',
+        rating: 9.0,
+        genres: ['Action', 'Adventure', 'Drama'],
+        director: 'Peter Jackson',
+        cast: ['Elijah Wood', 'Viggo Mortensen', 'Ian McKellen'],
+        synopsis: 'Gandalf and Aragorn lead the World of Men against Sauron\'s army to draw his gaze from Frodo and Sam.',
+        duration: 201,
+      },
+      {
+        id: 14,
+        title: 'The Lord of the Rings: The Fellowship of the Ring',
+        year: 2001,
+        poster_url: 'https://via.placeholder.com/300x450/1a1a1a/ffffff?text=LOTR+Fellowship',
+        rating: 8.8,
+        genres: ['Action', 'Adventure', 'Drama'],
+        director: 'Peter Jackson',
+        cast: ['Elijah Wood', 'Ian McKellen', 'Orlando Bloom'],
+        synopsis: 'A meek Hobbit and eight companions set out on a journey to destroy the One Ring.',
+        duration: 178,
+      },
+      {
+        id: 15,
+        title: 'Star Wars: Episode V - The Empire Strikes Back',
+        year: 1980,
+        poster_url: 'https://via.placeholder.com/300x450/1a1a1a/ffffff?text=Empire+Strikes+Back',
+        rating: 8.7,
+        genres: ['Action', 'Adventure', 'Fantasy'],
+        director: 'Irvin Kershner',
+        cast: ['Mark Hamill', 'Harrison Ford', 'Carrie Fisher'],
+        synopsis: 'After the Rebels are brutally overpowered by the Empire, Luke Skywalker trains with Jedi Master Yoda.',
+        duration: 124,
+      },
     ];
 
+    // Simulate pagination
+    const total = allMockMovies.length;
+    const totalPages = Math.ceil(total / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedMovies = allMockMovies.slice(startIndex, endIndex);
+
     return {
-      data: mockMovies,
-      total: mockMovies.length,
-      page: 1,
-      totalPages: 1,
+      data: paginatedMovies,
+      total: total,
+      page: page,
+      totalPages: totalPages,
     };
   }
 

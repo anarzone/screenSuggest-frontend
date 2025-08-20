@@ -5,8 +5,19 @@ class ApiClient {
   private client: AxiosInstance;
 
   constructor() {
+    // Determine base URL based on environment
+    const getBaseURL = () => {
+      const isDevelopment = import.meta.env.DEV || import.meta.env.MODE === 'development';
+      
+      if (isDevelopment) {
+        return 'https://screensuggest.staging.api.anarzone.com';
+      } else {
+        return 'https://screensuggest.api.anarzone.com';
+      }
+    };
+
     this.client = axios.create({
-      baseURL: 'https://screensuggest.dev.anarzone.com/api',
+      baseURL: getBaseURL(),
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',

@@ -23,7 +23,7 @@ export default {
       searchQuery: '',
       currentPage: 1,
       totalPages: 1,
-      hasMoreMovies: true,
+      hasMoreMovies: false,
       showAdvancedFilters: false,
       genres: [] as string[],
       loadingGenres: false,
@@ -75,6 +75,7 @@ export default {
         this.hasMoreMovies = this.currentPage < response.totalPages;
       } catch (error) {
         console.error('Error loading featured movies:', error);
+        this.hasMoreMovies = false;
       } finally {
         this.loadingFeatured = false;
       }
@@ -108,14 +109,14 @@ export default {
         this.$router.push({ name: 'Search' });
       }
     },
+    handleViewAllClick() {
+      this.$router.push({ name: 'Search' });
+    },
     handleGenreClick(genre: string) {
       this.$router.push({
         name: 'Search',
         query: { genre }
       });
-    },
-    handleViewAllClick() {
-      this.$router.push({ name: 'Search' });
     },
     toggleAdvancedFilters() {
       this.showAdvancedFilters = !this.showAdvancedFilters;
@@ -180,7 +181,7 @@ export default {
 </script>
 
 <template>
-  <div class="home-page min-h-screen">
+  <div class="home-page min-h-screen bg-background text-textPrimary">
     <!-- Hero Section -->
     <section class="hero relative h-[500px] flex items-center justify-center">
       <!-- Background Image with Overlay -->
@@ -204,7 +205,7 @@ export default {
             @keydown.enter="handleAdvancedSearch"
             type="text"
             placeholder="Search for movies..."
-            class="w-full bg-background/80 backdrop-blur-sm border border-border rounded py-4 px-6 pr-12 text-lg focus:ring-2 focus:ring-primary focus:outline-none text-textPrimary"
+            class="w-full bg-background/80 backdrop-blur-sm border border-border rounded py-4 px-6 pr-12 text-lg focus:outline-none text-textPrimary"
           />
           <button
             @click="handleAdvancedSearch"
@@ -232,7 +233,7 @@ export default {
               <label class="block text-textPrimary font-medium mb-2 text-sm">Genre</label>
               <select
                 v-model="advancedFilters.genre"
-                class="w-full bg-background border border-border text-textPrimary rounded px-3 py-2 focus:ring-1 focus:ring-primary focus:outline-none text-sm"
+                class="w-full bg-background border border-border text-textPrimary rounded px-3 py-2 focus:outline-none text-sm"
                 :disabled="loadingGenres"
               >
                 <option value="">{{ loadingGenres ? 'Loading Genres...' : 'All Genres' }}</option>
@@ -247,7 +248,7 @@ export default {
               <label class="block text-textPrimary font-medium mb-2 text-sm">Release Year</label>
               <select
                 v-model="advancedFilters.yearFilter"
-                class="w-full bg-background border border-border text-textPrimary rounded px-3 py-2 focus:ring-1 focus:ring-primary focus:outline-none text-sm"
+                class="w-full bg-background border border-border text-textPrimary rounded px-3 py-2 focus:outline-none text-sm"
               >
                 <option value="">All Years</option>
                 <option value="2024">2024</option>
@@ -311,63 +312,88 @@ export default {
           </button>
         </div>
 
-        <!-- 4-Column Responsive Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          <div
-            v-for="movie in featuredMovies"
-            :key="movie.id"
-            class="movie-card group cursor-pointer"
-            @click="handleMovieClick(movie)"
-          >
-            <!-- Movie Poster -->
-            <div class="relative overflow-hidden rounded">
-              <img
-                :src="movie.poster_url || getPlaceholderImage(movie.title)"
-                :alt="`${movie.title} movie poster`"
-                class="w-full aspect-[2/3] object-cover transition-transform group-hover:scale-105"
-                loading="lazy"
-              />
-              <button
-                @click.stop="handleMovieBookmark(movie)"
-                class="absolute top-2 right-2 bg-background/80 hover:bg-primary transition-colors p-1.5 rounded-full opacity-0 group-hover:opacity-100"
-                title="Add to Watchlist"
-              >
-                <font-awesome-icon icon="bookmark" class="text-primary hover:text-background" />
-              </button>
-            </div>
-            
-            <!-- Movie Info -->
-            <div class="mt-3">
-              <h3 class="text-textPrimary font-medium">{{ movie.title }}</h3>
-              <div class="flex items-center justify-between mt-1">
-                <span class="text-textSecondary text-sm">
-                  {{ movie.year || (movie.releaseDate ? new Date(movie.releaseDate).getFullYear() : 'N/A') }}
-                </span>
-                <div class="flex items-center">
-                  <font-awesome-icon icon="star" class="text-primary text-sm mr-1" />
-                  <span class="text-textSecondary text-sm">{{ formatRating(movie.rating) }}</span>
+        <!-- Initial Loading State - Full Page -->
+        <div v-if="loadingFeatured && featuredMovies.length === 0" class="flex flex-col items-center justify-center py-20">
+          <div class="relative">
+            <!-- Main spinner -->
+            <font-awesome-icon icon="spinner" class="animate-spin text-primary text-5xl" />
+            <!-- Pulsing rings around spinner -->
+            <div class="absolute inset-0 border-4 border-primary/20 rounded-full animate-ping"></div>
+            <div class="absolute inset-2 border-2 border-primary/10 rounded-full animate-pulse"></div>
+          </div>
+          <h3 class="text-xl font-medium text-textPrimary mt-6 mb-2">Loading Featured Movies</h3>
+          <p class="text-textSecondary text-center max-w-md">
+            Discovering the latest and greatest movies just for you...
+          </p>
+          <!-- Loading dots animation -->
+          <div class="flex space-x-1 mt-4">
+            <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+            <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+            <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+          </div>
+        </div>
+
+        <!-- Movies Grid - Only show when we have movies or not initially loading -->
+        <div v-else>
+          <!-- 4-Column Responsive Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div
+              v-for="movie in featuredMovies"
+              :key="movie.id"
+              class="movie-card group cursor-pointer"
+              @click="handleMovieClick(movie)"
+            >
+              <!-- Movie Poster -->
+              <div class="relative overflow-hidden rounded">
+                <img
+                  :src="movie.poster_url || getPlaceholderImage(movie.title)"
+                  :alt="`${movie.title} movie poster`"
+                  class="w-full aspect-[2/3] object-cover transition-transform group-hover:scale-105"
+                  loading="lazy"
+                />
+                <button
+                  @click.stop="handleMovieBookmark(movie)"
+                  class="absolute top-2 right-2 bg-background/80 hover:bg-primary transition-colors p-1.5 rounded-full opacity-0 group-hover:opacity-100"
+                  title="Add to Watchlist"
+                >
+                  <font-awesome-icon icon="bookmark" class="text-primary hover:text-background" />
+                </button>
+              </div>
+              
+              <!-- Movie Info -->
+              <div class="mt-3">
+                <h3 class="text-textPrimary font-medium">{{ movie.title }}</h3>
+                <div class="flex items-center justify-between mt-1">
+                  <span class="text-textSecondary text-sm">
+                    {{ movie.year || (movie.releaseDate ? new Date(movie.releaseDate).getFullYear() : 'N/A') }}
+                  </span>
+                  <div class="flex items-center">
+                    <font-awesome-icon icon="star" class="text-primary text-sm mr-1" />
+                    <span class="text-textSecondary text-sm">{{ formatRating(movie.rating) }}</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Loading State -->
-        <div v-if="loadingFeatured && currentPage === 1" class="text-center py-8">
-          <font-awesome-icon icon="spinner" class="animate-spin text-primary text-2xl" />
-          <p class="text-textSecondary mt-2">Loading movies...</p>
-        </div>
+          <!-- Load More Loading State -->
+          <div v-if="loadingMore" class="text-center mt-8">
+            <div class="flex items-center justify-center">
+              <font-awesome-icon icon="spinner" class="animate-spin text-primary text-xl mr-3" />
+              <span class="text-textPrimary font-medium">Loading more movies...</span>
+            </div>
+          </div>
 
-        <!-- Load More Button -->
-        <div v-if="hasMoreMovies && !loadingFeatured" class="text-center mt-8">
-          <button
-            @click="loadMoreMovies"
-            :disabled="loadingMore"
-            class="bg-primary hover:bg-secondary text-background font-medium px-8 py-3 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <font-awesome-icon v-if="loadingMore" icon="spinner" class="animate-spin mr-2" />
-            {{ loadingMore ? 'Loading...' : 'Load More Movies' }}
-          </button>
+          <!-- Load More Button -->
+          <div v-else-if="hasMoreMovies && !loadingFeatured" class="text-center mt-8">
+            <button
+              @click="loadMoreMovies"
+              :disabled="loadingMore"
+              class="bg-primary hover:bg-secondary text-background font-medium px-8 py-3 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Load More Movies
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -380,9 +406,9 @@ export default {
         </h2>
         
         <!-- Loading State for Genres -->
-        <div v-if="loadingGenres" class="text-center py-8">
-          <font-awesome-icon icon="spinner" class="animate-spin text-primary text-2xl" />
-          <p class="text-textSecondary mt-2">Loading genres...</p>
+        <div v-if="loadingGenres" class="flex flex-col items-center justify-center py-12">
+          <font-awesome-icon icon="spinner" class="animate-spin text-primary text-3xl mb-4" />
+          <p class="text-textSecondary">Loading genres...</p>
         </div>
 
         <!-- Genre Grid -->
@@ -421,5 +447,36 @@ export default {
 * {
   transition-duration: 150ms;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Enhanced loading animations */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2s ease-out infinite;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
 }
 </style>

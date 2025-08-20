@@ -149,7 +149,7 @@ export default {
 </script>
 
 <template>
-  <div class="movie-detail-page min-h-screen">
+  <div class="movie-detail-page min-h-screen bg-background text-textPrimary">
     <!-- Header -->
     <Header
       :show-search="true"
@@ -317,13 +317,13 @@ export default {
             <button
               @click="() => handleVote('down')"
               class="flex items-center gap-2 border transition-colors px-4 py-2 rounded"
-              :class="userVote === 'down' ? 'bg-red-600 border-red-600 text-white' : 'bg-background border-border hover:border-red-600'"
+              :class="userVote === 'down' ? 'bg-secondary border-secondary text-background' : 'bg-background border-border hover:border-primary'"
             >
               <font-awesome-icon 
                 icon="thumbs-down" 
-                :class="userVote === 'down' ? 'text-white' : 'text-textSecondary'"
+                :class="userVote === 'down' ? 'text-background' : 'text-textSecondary'"
               />
-              <span :class="userVote === 'down' ? 'text-white' : 'text-textPrimary'">
+              <span :class="userVote === 'down' ? 'text-background' : 'text-textPrimary'">
                 {{ movie.votes_down || 0 }}
               </span>
             </button>

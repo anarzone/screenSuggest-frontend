@@ -26,9 +26,13 @@ export interface SearchFilters {
   genre?: string;
   yearFrom?: number;
   yearTo?: number;
+  yearStart?: number;
+  yearEnd?: number;
   ratingFrom?: number;
-  ratingMin?: string;
-  ratingMax?: string;
+  ratingMin?: string | number;
+  ratingMax?: string | number;
+  imdbRatingMin?: string | number;
+  imdbRatingMax?: string | number;
   sortBy?: string;
   sortOrder?: string;
   page?: number;
