@@ -1,4 +1,4 @@
-name: Deploy (Forge CLI)
+name: Deploy to Laravel Forge
 
 on:
   push:
@@ -7,42 +7,76 @@ on:
       - main
 
 jobs:
-  deployStagingJob:
+  deploy-staging:
+    name: Deploy to Staging (Dev Branch)
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/dev'
+    
     steps:
-     - uses: actions/checkout@v4
-
-     - name: Setup Node.js
-       uses: actions/setup-node@v4
-       with:
-          node-version: 20
-
-     - name: Install dependencies & build
-       run: |
-          npm ci
-          npm run build
-
-     - name: Trigger Forge deployment
-       run: |
-          # Replace with the full trigger URL from Forge (store as secret)
-          curl -X POST "https://forge.laravel.com/servers/906819/sites/2823146/deploy/http?token=bmCzYtUTmwvZVxcdvrCrZArEBVmIoourJ9QngLYi?forge_deploy_branch=dev" --fail
-
-  deployProductionJob:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
 
-      - name: Install dependencies & build
-        run: |
-          npm ci
-          npm run build
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Trigger Forge deployment
+      - name: Run type checking
+        run: npm run type-check
+
+      - name: Build for staging
+        run: npm run build
+        env:
+          NODE_ENV: development
+
+      - name: Deploy to Forge (Staging)
         run: |
-          # Replace with the full trigger URL from Forge (store as secret)
-          curl -X POST "https://forge.laravel.com/servers/906819/sites/2823146/deploy/http?token=bmCzYtUTmwvZVxcdvrCrZArEBVmIoourJ9QngLYi?forge_deploy_branch=main" --fail
+          curl -X POST "${{ secrets.FORGE_STAGING_DEPLOY_URL }}" \
+            --fail \
+            --silent \
+            --show-error \
+            -H "Content-Type: application/json" \
+            -d '{"branch": "dev"}'
+        env:
+          FORGE_STAGING_DEPLOY_URL: ${{ secrets.FORGE_STAGING_DEPLOY_URL }}
+
+  deploy-production:
+    name: Deploy to Production (Main Branch)
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run type checking
+        run: npm run type-check
+
+      - name: Build for production
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Deploy to Forge (Production)
+        run: |
+          curl -X POST "${{ secrets.FORGE_PRODUCTION_DEPLOY_URL }}" \
+            --fail \
+            --silent \
+            --show-error \
+            -H "Content-Type: application/json" \
+            -d '{"branch": "main"}'
+        env:
+          FORGE_PRODUCTION_DEPLOY_URL: ${{ secrets.FORGE_PRODUCTION_DEPLOY_URL }}
